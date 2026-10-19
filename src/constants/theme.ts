@@ -69,4 +69,5 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const MaxContentWidth = 800;
+/** Phone-width column; the app is reviewed on a phone browser. */
+export const MaxContentWidth = 560;

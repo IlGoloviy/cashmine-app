@@ -23,7 +23,11 @@
     },
     "web": {
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "CashMine",
+      "shortName": "CashMine",
+      "themeColor": "#208AEF",
+      "backgroundColor": "#ffffff"
     },
     "plugins": [
       "expo-router",

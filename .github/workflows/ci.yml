@@ -8,6 +8,8 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_API_URL: https://api.test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,5 +20,4 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test -- --ci
-        env:
-          EXPO_PUBLIC_API_URL: https://api.test
+      - run: npm run build:web
