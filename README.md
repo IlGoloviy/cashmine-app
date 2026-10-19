@@ -1,56 +1,49 @@
-# Welcome to your Expo app 👋
+# CashMine — React Native task
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo SDK 58 · React Native 0.88 · React 19.3 · TypeScript 6 (strict) · Expo Router · TanStack Query 5 · zod 4
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Run
 
 ```bash
-npm run reset-project
+npm install
+cp .env.example .env.local   # fill API URL + token from the brief
+npm run ios                  # or: npm run android / npx expo start (Expo Go)
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Quality gate (also runs in GitHub Actions): `npm run check` → typecheck, lint, tests.
 
-### Other setup steps
+## What I built
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+<!-- Fill in during the task: scope from the brief, screenshots / short video -->
 
-## Learn more
+## Architecture
 
-To learn more about developing your project with Expo, look at the following resources:
+```
+src/
+  app/                 Expo Router routes (screens only)
+  features/<name>/     schemas.ts (zod) · api.ts · queries.ts · components/
+  components/ui/       Button, QueryView, Loading/Error/Empty views
+  lib/api/             typed fetch client + ApiError
+  lib/auth/            token storage (SecureStore)
+  lib/money.ts         decimal-string / bigint amount helpers
+  lib/query-client.ts  TanStack Query defaults, AppState focus
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Key decisions
 
-## Join the community
+- **Every response is validated with zod.** A server contract change surfaces as a clear `parse` error,
+  not as `undefined` rendered on a balance screen.
+- **Typed error model** (`http` / `network` / `timeout` / `parse`) → one place mapping errors to user messages.
+- **Amounts never touch JS `number`.** Decimal strings for display, `bigint` base units for math.
+- **Mutations are never auto-retried; transfers carry an `Idempotency-Key`** so a retry after a timeout
+  cannot move money twice.
+- **Server state lives in TanStack Query**, no global store. Refetch on app foreground via `AppState`.
+- **Token in SecureStore** (Keychain / Keystore), not AsyncStorage.
 
-Join our community of developers creating universal apps.
+## Trade-offs & what I'd do next
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+<!-- Fill in at the end: what was cut for time, known issues, next steps -->
+
+## AI usage
+
+See [`docs/ai-conversations`](docs/ai-conversations).

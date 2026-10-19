@@ -39,3 +39,20 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Project conventions (CashMine task)
+
+Correctness first — this app shows and moves real money.
+
+- **Structure**: routes only in `src/app/`. Feature code in `src/features/<feature>/`:
+  - `schemas.ts` — zod schemas + inferred types (`z.infer`). Types come from schemas, never hand-written twice.
+  - `api.ts` — plain async functions calling `request()` from `@/lib/api`.
+  - `queries.ts` — query key factory + `useXxxQuery` / `useXxxMutation` hooks.
+  - `components/` — feature UI.
+- **Networking**: always go through `request(path, { schema, signal })`. Pass TanStack's `signal`. Never call `fetch` directly.
+- **Money**: amounts are decimal strings or `bigint` base units — never `number`, never `parseFloat` for math. Use `src/lib/money.ts`. Schemas for amounts: `z.string()` (or `z.union([z.string(), z.number()]).transform(String)` if the API sends numbers).
+- **Mutations that move funds**: `retry: false`, create an idempotency key once per user intent (`newIdempotencyKey()`), disable the submit button while pending, invalidate affected queries on success.
+- **Screen states**: render through `<QueryView>` so loading / error+retry / empty / data are always handled. Lists use `FlatList` + `RefreshControl` bound to `refetch`.
+- **Secrets**: tokens via `src/lib/auth/token-storage.ts` (SecureStore). Never log tokens.
+- **Styling**: `StyleSheet` + `useTheme()` colors from `src/constants/theme.ts`; support dark mode.
+- Before finishing: `npm run check` (typecheck + lint + tests) must pass.

@@ -3,8 +3,6 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://unistyl.es/), etc.
  */
 
-import '@/global.css';
-
 import { Platform } from 'react-native';
 
 export const Colors = {
@@ -14,6 +12,11 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    tint: '#208AEF',
+    onTint: '#ffffff',
+    border: '#E0E1E6',
+    success: '#1A9F5B',
+    danger: '#D93036',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +24,11 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    tint: '#3C9EFF',
+    onTint: '#ffffff',
+    border: '#2E3135',
+    success: '#3DD68C',
+    danger: '#FF6369',
   },
 } as const;
 
@@ -44,10 +52,10 @@ export const Fonts = Platform.select({
     mono: 'monospace',
   },
   web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
+    sans: 'system-ui, sans-serif',
+    serif: 'ui-serif, serif',
+    rounded: 'ui-rounded, system-ui, sans-serif',
+    mono: 'ui-monospace, monospace',
   },
 });
 
@@ -61,5 +69,4 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
