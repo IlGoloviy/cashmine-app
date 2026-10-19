@@ -14,12 +14,13 @@ cp .env.example .env.local   # API URL + token from the brief
 npm run web                  # http://localhost:8081
 ```
 
-| Script                  | What it does                                      |
-| ----------------------- | ------------------------------------------------- |
-| `npm run check`         | typecheck + lint + tests (also in GitHub Actions) |
-| `npm run build:web`     | static export to `dist/`                          |
-| `npm run preview:web`   | serve `dist/` locally like production             |
-| `npm run deploy:vercel` | build + deploy to Vercel                          |
+| Script                   | What it does                                      |
+| ------------------------ | ------------------------------------------------- |
+| `npm run check`          | typecheck + lint + tests (also in GitHub Actions) |
+| `npm run build:web`      | static export to `dist/`                          |
+| `npm run preview:web`    | serve `dist/` locally like production             |
+| `npm run deploy:preview` | build + deploy a Netlify draft URL                |
+| `npm run deploy`         | build + deploy to production on Netlify           |
 
 ## What I built
 
@@ -36,7 +37,7 @@ src/
   lib/auth/            token storage (SecureStore native / sessionStorage web)
   lib/money.ts         decimal-string / bigint amount helpers
   lib/query-client.ts  TanStack Query defaults
-public/                copied into the web build (SPA rewrites)
+public/                copied into the web build (`_redirects` SPA fallback for Netlify)
 ai-logs/               AI conversations
 ```
 

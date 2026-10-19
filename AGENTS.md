@@ -31,9 +31,9 @@ Run lint and typecheck before declaring any task done.
 
 ## Web build & deploy
 
-- `npm run build:web` → static SPA in `dist/` (`web.output: "single"`). `public/` is copied into `dist/` (SPA rewrites for Vercel/Netlify live there).
+- `npm run build:web` → static SPA in `dist/` (`web.output: "single"`). `public/` is copied into `dist/` (`_redirects` = Netlify SPA fallback so deep links survive a refresh).
 - `npm run preview:web` → serve `dist/` locally exactly like production.
-- `npm run deploy:vercel` (primary) or `npm run deploy:eas` (EAS Hosting).
+- `npm run deploy:preview` (draft URL) / `npm run deploy` (production) → Netlify via CLI, deploying the prebuilt `dist/`.
 - Env vars are inlined at **build** time from `.env.local` — rebuild after changing them.
 
 ## Rules

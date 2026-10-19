@@ -60,8 +60,8 @@
     "doctor": "npx expo-doctor",
     "build:web": "expo export --platform web --clear",
     "preview:web": "npx serve dist --single",
-    "deploy:vercel": "npm run build:web && npx vercel deploy dist --prod",
-    "deploy:eas": "npm run build:web && npx eas-cli@latest deploy --prod"
+    "deploy": "npm run build:web && npx netlify-cli@latest deploy --dir dist --prod",
+    "deploy:preview": "npm run build:web && npx netlify-cli@latest deploy --dir dist"
   },
   "private": true
 }
