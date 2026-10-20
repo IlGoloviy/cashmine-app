@@ -7,24 +7,36 @@ import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
 import { QueryView } from '@/components/ui/query-view';
 import { Screen } from '@/components/ui/screen';
+import { LoadingView } from '@/components/ui/state-views';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { maxAmount, validateClaimAmount } from '@/features/claims/amount';
 import { isOutcomeUnknown } from '@/features/claims/outcome';
 import type { DisplayBalance } from '@/features/claims/overlay';
+import {
+  clearPendingAttempt,
+  savePendingAttempt,
+  usePendingAttempt,
+  type PendingAttempt,
+} from '@/features/claims/pending-attempt';
 import { useClaimOptionsQuery, useCreateClaimMutation } from '@/features/claims/queries';
-import type { ClaimOptions, CreateClaimInput } from '@/features/claims/schemas';
+import type { ClaimOptions } from '@/features/claims/schemas';
 import { useDisplayBalances } from '@/features/claims/use-display-balances';
 import { useTheme } from '@/hooks/use-theme';
 import { getErrorMessage, isApiError } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { newIdempotencyKey } from '@/lib/idempotency';
-import { formatAmount, toBaseUnits } from '@/lib/money';
+import { formatAmount, fromBaseUnits, toBaseUnits } from '@/lib/money';
 
 export default function ClaimScreen() {
   const params = useLocalSearchParams<{ asset?: string }>();
   const { query, display } = useDisplayBalances();
-  const [asset, setAsset] = useState(params.asset);
+  const pending = usePendingAttempt();
+  const [chosenAsset, setAsset] = useState(params.asset);
+  // An unconfirmed claim pins the screen to its asset until it is resolved.
+  const asset = pending ? pending.input.asset : chosenAsset;
+
+  if (pending === undefined) return <LoadingView />;
 
   return (
     <Screen>
@@ -42,9 +54,10 @@ export default function ClaimScreen() {
                 options={items.map((b) => ({ id: b.asset, label: b.asset }))}
                 selected={asset}
                 onSelect={setAsset}
+                disabled={!!pending}
               />
               {balance ? (
-                <ClaimForm key={balance.asset} balance={balance} />
+                <ClaimForm key={balance.asset} balance={balance} pending={pending} />
               ) : (
                 <ThemedText themeColor="textSecondary">Pick an asset to claim.</ThemedText>
               )}
@@ -56,24 +69,24 @@ export default function ClaimScreen() {
   );
 }
 
-function ClaimForm({ balance }: { balance: DisplayBalance }) {
+type FormProps = { balance: DisplayBalance; pending: PendingAttempt | null };
+
+function ClaimForm({ balance, pending }: FormProps) {
   const options = useClaimOptionsQuery(balance.asset);
   return (
     <QueryView query={options}>
-      {(data) => <ClaimFormBody balance={balance} options={data} />}
+      {(data) => <ClaimFormBody balance={balance} options={data} pending={pending} />}
     </QueryView>
   );
 }
 
-/** One user intent = one key. Kept while the outcome is unknown so resends are idempotent. */
-type Attempt = { input: CreateClaimInput; idempotencyKey: string };
-
-function ClaimFormBody({ balance, options }: { balance: DisplayBalance; options: ClaimOptions }) {
+function ClaimFormBody({ balance, options, pending }: FormProps & { options: ClaimOptions }) {
   const theme = useTheme();
   const { asset, decimals } = balance;
-  const [amountInput, setAmountInput] = useState('');
-  const [destinationId, setDestinationId] = useState(options.destinations[0]?.id);
-  const [attempt, setAttempt] = useState<Attempt | null>(null);
+  const [amountInput, setAmountInput] = useState(pending?.input.amount ?? '');
+  const [destinationId, setDestinationId] = useState(
+    pending?.input.destinationId ?? options.destinations[0]?.id,
+  );
   const [touched, setTouched] = useState(false);
   // window.confirm + async state: a ref closes the double-tap window before re-render.
   const inFlight = useRef(false);
@@ -86,7 +99,10 @@ function ClaimFormBody({ balance, options }: { balance: DisplayBalance; options:
     minAmount: options.minAmount,
     fee: options.fee,
   });
-  const unknown = attempt !== null && mutation.isError && isOutcomeUnknown(mutation.error);
+  // One user intent = one key. The attempt is persisted before sending and only
+  // cleared on success or a definite rejection, so while it exists the outcome is
+  // unknown (also after a reload, when there is no error in memory any more).
+  const unknown = pending !== null && !mutation.isPending;
   const locked = mutation.isPending || unknown;
   const serverFieldError =
     mutation.isError && isApiError(mutation.error) && mutation.error.field === 'amount'
@@ -98,15 +114,32 @@ function ClaimFormBody({ balance, options }: { balance: DisplayBalance; options:
   const fmt = (amount: string) =>
     `${formatAmount(amount, { maxFractionDigits: decimals })} ${asset}`;
   const destination = options.destinations.find((d) => d.id === destinationId);
+  // While an attempt is unresolved, show exactly what it sends — not a re-validation
+  // against today's balance (which already dropped if the claim went through).
+  const summary = pending
+    ? {
+        amount: pending.input.amount,
+        receive: fromBaseUnits(
+          toBaseUnits(pending.input.amount, decimals) - toBaseUnits(options.fee, decimals),
+          decimals,
+        ),
+      }
+    : check.ok
+      ? check
+      : null;
 
-  const send = (next: Attempt) => {
+  const send = async (next: PendingAttempt) => {
     inFlight.current = true;
-    setAttempt(next);
+    // Write-ahead: if the tab dies mid-request, the key survives for a safe resend.
+    await savePendingAttempt(next);
     mutation.mutate(next, {
-      onSuccess: (claim) => router.replace({ pathname: '/claims/[id]', params: { id: claim.id } }),
+      onSuccess: (claim) => {
+        void clearPendingAttempt();
+        router.replace({ pathname: '/claims/[id]', params: { id: claim.id } });
+      },
       onError: (error) => {
         // Definitely rejected (4xx): the next submit is a new intent with a new key.
-        if (!isOutcomeUnknown(error)) setAttempt(null);
+        if (!isOutcomeUnknown(error)) void clearPendingAttempt();
       },
       onSettled: () => {
         inFlight.current = false;
@@ -123,14 +156,15 @@ function ClaimFormBody({ balance, options }: { balance: DisplayBalance; options:
       confirmText: 'Claim',
     });
     if (!ok || inFlight.current) return;
-    send({
+    void send({
       input: { asset, amount: check.amount, destinationId: destination.id },
       idempotencyKey: newIdempotencyKey(),
+      savedAt: new Date().toISOString(),
     });
   };
 
   const resend = () => {
-    if (attempt && !inFlight.current) send(attempt);
+    if (pending && !inFlight.current) void send(pending);
   };
 
   const startOver = async () => {
@@ -143,7 +177,7 @@ function ClaimFormBody({ balance, options }: { balance: DisplayBalance; options:
       destructive: true,
     });
     if (!ok) return;
-    setAttempt(null);
+    await clearPendingAttempt();
     mutation.reset();
     router.replace('/');
   };
@@ -203,17 +237,20 @@ function ClaimFormBody({ balance, options }: { balance: DisplayBalance; options:
       )}
 
       <ThemedView type="backgroundElement" style={styles.summary}>
-        <SummaryRow label="Amount" value={check.ok ? fmt(check.amount) : '—'} />
+        <SummaryRow label="Amount" value={summary ? fmt(summary.amount) : '—'} />
         <SummaryRow label="Fee" value={fmt(options.fee)} />
-        <SummaryRow label="You receive" value={check.ok ? fmt(check.receive) : '—'} bold />
+        <SummaryRow label="You receive" value={summary ? fmt(summary.receive) : '—'} bold />
       </ThemedView>
 
       {unknown ? (
         <View style={[styles.banner, { borderColor: theme.danger }]} accessibilityRole="alert">
           <ThemedText type="smallBold">We couldn’t confirm your claim</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {unknownReason(mutation.error)} Your claim may already have gone through. “Check again”
-            safely resends the same request — it will never create a second claim.
+            {mutation.error
+              ? unknownReason(mutation.error)
+              : 'This claim was sent, but the app closed before the server answered.'}{' '}
+            Your claim may already have gone through. “Check again” safely resends the same request
+            — it will never create a second claim.
           </ThemedText>
           <Button title="Check again" onPress={resend} loading={mutation.isPending} />
           <Button title="Start over" variant="secondary" onPress={() => void startOver()} />

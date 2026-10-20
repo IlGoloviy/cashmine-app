@@ -9,12 +9,16 @@ import { Spacing } from '@/constants/theme';
 import { BalanceRow } from '@/features/balances/components/balance-row';
 import { Freshness } from '@/features/balances/components/freshness';
 import { totalUsd } from '@/features/balances/totals';
+import { usePendingAttempt } from '@/features/claims/pending-attempt';
 import { useDisplayBalances } from '@/features/claims/use-display-balances';
+import { useTheme } from '@/hooks/use-theme';
 import { getErrorMessage } from '@/lib/api';
 import { formatUsd } from '@/lib/money';
 
 export default function BalancesScreen() {
   const { query, display } = useDisplayBalances();
+  const pending = usePendingAttempt();
+  const theme = useTheme();
   const refresh = () => void query.refetch();
 
   return (
@@ -56,6 +60,23 @@ export default function BalancesScreen() {
                     {formatUsd(totalUsd(display.items))}
                   </ThemedText>
                   <Freshness asOf={display.asOf} />
+                  {pending ? (
+                    <View
+                      style={[styles.pending, { borderColor: theme.danger }]}
+                      accessibilityRole="alert">
+                      <ThemedText type="smallBold">
+                        Unconfirmed claim: {pending.input.amount} {pending.input.asset}
+                      </ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        We never got an answer for this claim. Check it before claiming again.
+                      </ThemedText>
+                      <Link
+                        href={{ pathname: '/claim', params: { asset: pending.input.asset } }}
+                        asChild>
+                        <Button title="Check claim" />
+                      </Link>
+                    </View>
+                  ) : null}
                   {query.isError ? (
                     <ThemedText type="small" themeColor="danger" accessibilityRole="alert">
                       Couldn’t refresh: {getErrorMessage(query.error)}
@@ -95,5 +116,11 @@ const styles = StyleSheet.create({
   total: { fontSize: 36, lineHeight: 44, fontWeight: 700, fontVariant: ['tabular-nums'] },
   headerButton: { paddingHorizontal: Spacing.three },
   actions: { flexDirection: 'row', gap: Spacing.two },
+  pending: {
+    borderWidth: 1,
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
   action: { flex: 1 },
 });

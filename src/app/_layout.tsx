@@ -7,6 +7,7 @@ import { useColorScheme } from 'react-native';
 
 import { useTokenStatus } from '@/features/auth/use-token-status';
 import { clearLocalClaims } from '@/features/claims/local-claims';
+import { clearPendingAttempt } from '@/features/claims/pending-attempt';
 import { subscribeToken } from '@/lib/auth/token-storage';
 import { createQueryClient, subscribeAppFocus } from '@/lib/query-client';
 
@@ -30,6 +31,8 @@ export default function RootLayout() {
       subscribeToken(() => {
         queryClient.clear();
         clearLocalClaims();
+        // A resend must never go out under a different token (another account).
+        void clearPendingAttempt();
       }),
     [queryClient],
   );
