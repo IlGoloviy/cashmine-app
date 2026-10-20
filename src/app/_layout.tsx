@@ -45,6 +45,7 @@ export default function RootLayout() {
             <Stack.Screen name="index" options={{ title: 'CashMine' }} />
             <Stack.Screen name="claim" options={{ title: 'Claim payback' }} />
             <Stack.Screen name="claims/[id]" options={{ title: 'Claim status' }} />
+            <Stack.Screen name="activity" options={{ title: 'Activity' }} />
           </Stack.Protected>
           <Stack.Screen name="token" options={{ title: 'API token' }} />
         </Stack>

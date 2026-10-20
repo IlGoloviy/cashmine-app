@@ -67,12 +67,18 @@ export default function BalancesScreen() {
                       confirm it.
                     </ThemedText>
                   ) : null}
-                  <Button
-                    title="Refresh"
-                    variant="secondary"
-                    loading={query.isFetching}
-                    onPress={refresh}
-                  />
+                  <View style={styles.actions}>
+                    <Button
+                      title="Refresh"
+                      variant="secondary"
+                      loading={query.isFetching}
+                      onPress={refresh}
+                      style={styles.action}
+                    />
+                    <Link href="/activity" asChild>
+                      <Button title="Activity" variant="secondary" style={styles.action} />
+                    </Link>
+                  </View>
                 </View>
               }
             />
@@ -88,4 +94,6 @@ const styles = StyleSheet.create({
   summary: { gap: Spacing.two, marginBottom: Spacing.one },
   total: { fontSize: 36, lineHeight: 44, fontWeight: 700, fontVariant: ['tabular-nums'] },
   headerButton: { paddingHorizontal: Spacing.three },
+  actions: { flexDirection: 'row', gap: Spacing.two },
+  action: { flex: 1 },
 });

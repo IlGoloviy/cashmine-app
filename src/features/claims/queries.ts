@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
+import { activityKeys } from '@/features/activity/queries';
 import { balanceKeys } from '@/features/balances/queries';
 
 import { createClaim, fetchClaim, fetchClaimOptions } from './api';
@@ -43,6 +44,7 @@ export function useClaimQuery(id: string) {
     // Settled: available/claiming changed on the server — refresh balances now.
     if (query.data.status !== 'pending') {
       void queryClient.invalidateQueries({ queryKey: balanceKeys.all });
+      void queryClient.invalidateQueries({ queryKey: activityKeys.all });
     }
   }, [query.data, status, queryClient]);
   return query;
@@ -62,6 +64,7 @@ export function useCreateClaimMutation() {
       upsertLocalClaim(claim);
       queryClient.setQueryData(claimKeys.detail(claim.id), claim);
       void queryClient.invalidateQueries({ queryKey: balanceKeys.all });
+      void queryClient.invalidateQueries({ queryKey: activityKeys.all });
     },
   });
 }
