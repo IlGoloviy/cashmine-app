@@ -8,9 +8,11 @@
  * Defaults to the most recently modified session of the current project
  * (~/.claude/projects/<cwd-slug>/*.jsonl).
  *
- * Redaction (the repo is public): values of secret-looking keys in .env.local
- * (TOKEN / KEY / SECRET / PASSWORD), any `--redact <value>`, Bearer tokens, JWTs
- * and long opaque strings next to the word "token". ALWAYS skim the output before committing.
+ * Redaction (the repo is public): values of secret-looking keys (TOKEN / KEY / SECRET /
+ * PASSWORD / AUTH) in every .env* file — raw, URL-encoded and JSON-escaped — plus any
+ * `--redact <value>`, Bearer tokens, JWTs and long opaque strings next to "token".
+ * Fails closed: refuses to write when no secret was found, unless `--no-secrets-ok`.
+ * ALWAYS skim the output before committing.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -50,19 +52,48 @@ function resolveSession(ref) {
 }
 
 // ---------- redaction ----------
-function secretsFromEnv(file = '.env.local') {
-  if (!fs.existsSync(file)) return [];
-  return fs
-    .readFileSync(file, 'utf8')
-    .split('\n')
-    .map((line) => line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"\n#]*)"?/))
-    .filter((m) => m && /TOKEN|KEY|SECRET|PASSWORD/i.test(m[1]) && m[2].trim().length >= 8)
-    .map((m) => m[2].trim());
+/**
+ * dotenv-style line parser: optional `export `, double/single/unquoted values,
+ * inline `# comments` only for unquoted values.
+ */
+export function parseEnvLine(line) {
+  const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+  if (!m) return null;
+  const [, key, raw] = m;
+  const trimmed = raw.trim();
+  const double = trimmed.match(/^"((?:[^"\\]|\\.)*)"/);
+  if (double) {
+    return { key, value: double[1].replace(/\\n/g, '\n').replace(/\\(["\\])/g, '$1') };
+  }
+  const single = trimmed.match(/^'([^']*)'/);
+  if (single) return { key, value: single[1] };
+  return { key, value: trimmed.replace(/\s+#.*$/, '').trim() };
 }
 
-const secrets = [...new Set([...secretsFromEnv(), ...extraSecrets])].sort(
-  (a, b) => b.length - a.length,
-);
+/** Secret-looking values from every .env* file in the project root. */
+function secretsFromEnvFiles(dir = '.') {
+  return fs
+    .readdirSync(dir)
+    .filter((f) => /^\.env(\..+)?$/.test(f))
+    .flatMap((f) => fs.readFileSync(path.join(dir, f), 'utf8').split(/\r?\n/))
+    .map(parseEnvLine)
+    .filter((e) => e && /TOKEN|KEY|SECRET|PASSWORD|AUTH/i.test(e.key) && e.value.length >= 8)
+    .map((e) => e.value);
+}
+
+/** Every textual form a secret can take inside a transcript. */
+const variants = (s) => [s, encodeURIComponent(s), JSON.stringify(s).slice(1, -1)];
+
+const rawSecrets = [...new Set([...secretsFromEnvFiles(), ...extraSecrets])];
+if (!rawSecrets.length && !args.includes('--no-secrets-ok')) {
+  // Fail closed: the repo is public, so an export with nothing to redact is suspicious.
+  console.error(
+    '✖ No secrets found in .env* files. Put the API token in .env.local, pass --redact <value>,\n' +
+      '  or --no-secrets-ok if this session truly never contained one.',
+  );
+  process.exit(1);
+}
+const secrets = [...new Set(rawSecrets.flatMap(variants))].sort((a, b) => b.length - a.length);
 const PATTERNS = [
   [/(Bearer\s+)[A-Za-z0-9._~+/=-]{12,}/gi, '$1[REDACTED]'],
   [/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, '[REDACTED_JWT]'],
@@ -183,5 +214,5 @@ fs.writeFileSync(outPath, redact(header + body.join('\n')) + '\n');
 console.log(`✔ ${outPath} ← ${sessionFile}`);
 console.log(`  ${turns} user messages, ${minutes} min, ${redactions} redaction(s)`);
 if (!secrets.length)
-  console.log('  ⚠ no secrets found in .env.local — pass --redact <value> if needed');
+  console.log('  ⚠ ran with --no-secrets-ok: nothing project-specific was redacted');
 console.log('  Review the file before committing — the repo is public.');
