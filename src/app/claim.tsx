@@ -212,8 +212,8 @@ function ClaimFormBody({ balance, options }: { balance: DisplayBalance; options:
         <View style={[styles.banner, { borderColor: theme.danger }]} accessibilityRole="alert">
           <ThemedText type="smallBold">We couldn’t confirm your claim</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {getErrorMessage(mutation.error)} Your claim may already have gone through. “Check
-            again” safely resends the same request — it will never create a second claim.
+            {unknownReason(mutation.error)} Your claim may already have gone through. “Check again”
+            safely resends the same request — it will never create a second claim.
           </ThemedText>
           <Button title="Check again" onPress={resend} loading={mutation.isPending} />
           <Button title="Start over" variant="secondary" onPress={() => void startOver()} />
@@ -244,10 +244,22 @@ function claimErrorMessage(error: unknown): string {
   return getErrorMessage(error);
 }
 
+/** Why the outcome is unknown, without "please try again" (that could mean "claim again"). */
+function unknownReason(error: unknown): string {
+  if (isApiError(error)) {
+    if (error.kind === 'network') return 'The connection dropped before the server answered.';
+    if (error.kind === 'timeout' || error.status === 504) {
+      return 'The server did not answer in time.';
+    }
+    if (error.kind === 'parse') return 'The server’s answer could not be read.';
+  }
+  return 'The server had a temporary problem.';
+}
+
 function SummaryRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <View style={styles.summaryRow}>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary" style={styles.summaryLabel}>
         {label}
       </ThemedText>
       <ThemedText type={bold ? 'smallBold' : 'small'} style={styles.summaryValue}>
@@ -283,7 +295,9 @@ function Chips({
             <Pressable
               key={option.id}
               accessibilityRole="radio"
-              accessibilityState={{ selected: active, disabled }}
+              accessibilityLabel={option.label}
+              aria-checked={active}
+              aria-disabled={disabled}
               disabled={disabled}
               onPress={() => onSelect(option.id)}
               style={[
@@ -311,6 +325,7 @@ const styles = StyleSheet.create({
   max: { marginTop: 24, paddingHorizontal: Spacing.three },
   summary: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.two },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
+  summaryLabel: { flexShrink: 0 },
   summaryValue: { flexShrink: 1, textAlign: 'right', fontVariant: ['tabular-nums'] },
   banner: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   chipsBlock: { gap: Spacing.one },
