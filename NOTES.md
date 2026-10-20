@@ -47,8 +47,11 @@ out under another account). API base URL is one constant in `src/lib/env.ts`. 42
 
 All in [`ai-logs/01-task.md`](ai-logs/01-task.md).
 
-1. **Prompt that didn't work.** _TODO (you): e.g. the first brief paste ended at
-   `<paste API docs>` and was interrupted/re-sent with the docs — say what you changed and why._
+1. **Prompt that didn't work.** My first paste of the brief ended at the placeholder
+   `<paste API docs>` — the API contract was missing, so the AI would have had to guess endpoints,
+   the amount grammar and the idempotency rules. I interrupted it and re-sent the brief with the
+   full API docs (log: `Request interrupted by user`). Lesson: give the contract up front — every
+   correctness rule of the claim flow lives in the docs, not in the brief.
 2. **AI output wrong or risky — and how it was caught.**
    - The scaffold's `env.ts` fell back to `EXPO_PUBLIC_API_TOKEN`; Metro would have inlined the token
      into the deployed bundle. Caught while planning (log: "Fix before the first deploy"); removed
@@ -58,7 +61,13 @@ All in [`ai-logs/01-task.md`](ai-logs/01-task.md).
      `git status`; the log was restored and `ai-logs` added to `.prettierignore`.
    - Browser testing found a real bug: a restored unconfirmed claim showed "—" as the amount because
      it was re-validated against the _current_ balance (which drops if the claim went through).
-3. **Disagreed / rejected a suggestion.** _TODO (you): pick a real moment and say why._
+3. **Rejected AI actions.** Before the task I set deny rules in `.claude/settings.json` for
+   reading/editing `.env*` and for destructive git commands, instead of relying on the AI's
+   restraint. During the task they rejected its actions twice: a `cat .env.example`, and a combined
+   command that included `git diff .env.example` and a `git checkout` of the AI log (log:
+   `has been denied`). The rules also showed a gap: the AI had already edited `.env.example`
+   through a Python script, which the `Edit(**/.env*)` rule doesn't cover — so the rules are a
+   safety net, and I still review every diff touching env files.
 
 ## Not done / known issues
 
