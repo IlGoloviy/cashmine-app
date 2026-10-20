@@ -44,3 +44,6 @@ example
 
 # Netlify local state
 .netlify/
+
+# Claude Code personal overrides (not shared)
+.claude/settings.local.json
