@@ -4,3 +4,5 @@ dist
 ios
 android
 package-lock.json
+# Raw AI conversations: must stay untidied (brief §5)
+ai-logs

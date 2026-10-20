@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { ApiError, request } from '@/lib/api';
+import { setToken } from '@/lib/auth/token-storage';
 
 const mockFetch = jest.fn();
 globalThis.fetch = mockFetch;
@@ -10,6 +11,7 @@ const jsonResponse = (body: unknown, status = 200) =>
 
 const Schema = z.object({ id: z.string() });
 
+beforeAll(() => setToken('test-token'));
 afterEach(() => mockFetch.mockReset());
 
 describe('request', () => {
@@ -20,7 +22,7 @@ describe('request', () => {
 
     expect(data).toEqual({ id: 'a1' });
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://api.test/assets?page=2');
+    expect(url).toBe('https://task-api.cashmine.io/assets?page=2');
     expect(init.headers.Authorization).toBe('Bearer test-token');
   });
 
@@ -33,6 +35,29 @@ describe('request', () => {
       kind: 'http',
       status: 422,
       message: 'Insufficient funds',
+    });
+  });
+
+  it('reads the API error envelope (code, field, retryAfterMs)', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({ error: { code: 'VALIDATION', message: 'Too small', field: 'amount' } }, 400),
+    );
+    await expect(request('/v1/claims', { schema: Schema, method: 'POST' })).rejects.toMatchObject({
+      status: 400,
+      code: 'VALIDATION',
+      field: 'amount',
+      message: 'Too small',
+    });
+
+    mockFetch.mockResolvedValue(
+      jsonResponse(
+        { error: { code: 'RATE_LIMITED', message: 'Slow down', retryAfterMs: 2300 } },
+        429,
+      ),
+    );
+    await expect(request('/v1/balances', { schema: Schema })).rejects.toMatchObject({
+      code: 'RATE_LIMITED',
+      retryAfterMs: 2300,
     });
   });
 

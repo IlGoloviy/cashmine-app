@@ -13,16 +13,32 @@ export class ApiError extends Error {
   readonly kind: ApiErrorKind;
   readonly status: number | undefined;
   readonly body: unknown;
+  /** API error code, e.g. VALIDATION, RATE_LIMITED, IDEMPOTENCY_MISMATCH. */
+  readonly code: string | undefined;
+  /** For VALIDATION: the request field the server rejected (e.g. "amount"). */
+  readonly field: string | undefined;
+  /** For 429: how long the server asks us to wait. */
+  readonly retryAfterMs: number | undefined;
 
   constructor(
     kind: ApiErrorKind,
     message: string,
-    options: { status?: number; body?: unknown; cause?: unknown } = {},
+    options: {
+      status?: number;
+      body?: unknown;
+      cause?: unknown;
+      code?: string;
+      field?: string;
+      retryAfterMs?: number;
+    } = {},
   ) {
     super(message, { cause: options.cause });
     this.kind = kind;
     this.status = options.status;
     this.body = options.body;
+    this.code = options.code;
+    this.field = options.field;
+    this.retryAfterMs = options.retryAfterMs;
   }
 
   get isUnauthorized() {
@@ -52,6 +68,10 @@ export function getErrorMessage(error: unknown): string {
     case 'http':
       if (error.isUnauthorized) return 'Your session has expired. Please sign in again.';
       if (error.status === 429) return 'Too many requests. Please wait a moment.';
+      if (error.status === 504) return 'The server did not finish in time. Please try again.';
+      if (error.status !== undefined && error.status >= 500) {
+        return 'The server had a temporary problem. Please try again.';
+      }
       return error.message || `Request failed (${error.status}).`;
   }
 }

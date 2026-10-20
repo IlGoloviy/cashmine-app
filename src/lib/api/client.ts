@@ -85,9 +85,13 @@ export async function request<TSchema extends z.ZodType>(
   const payload = await readBody(response);
 
   if (!response.ok) {
-    throw new ApiError('http', extractServerMessage(payload) ?? response.statusText, {
+    const envelope = readErrorEnvelope(payload);
+    throw new ApiError('http', envelope.message ?? response.statusText, {
       status: response.status,
       body: payload,
+      code: envelope.code,
+      field: envelope.field,
+      retryAfterMs: envelope.retryAfterMs ?? retryAfterHeaderMs(response),
     });
   }
 
@@ -116,14 +120,30 @@ async function readBody(response: Response): Promise<unknown> {
   }
 }
 
-function extractServerMessage(payload: unknown): string | undefined {
-  if (typeof payload === 'string' && payload.length < 200) return payload;
-  if (payload && typeof payload === 'object') {
-    const record = payload as Record<string, unknown>;
-    for (const key of ['message', 'error', 'detail', 'title']) {
-      const value = record[key];
-      if (typeof value === 'string') return value;
-    }
-  }
-  return undefined;
+type ErrorEnvelope = { message?: string; code?: string; field?: string; retryAfterMs?: number };
+
+/** API errors look like `{ "error": { "code", "message", "field"?, "retryAfterMs"? } }`. */
+function readErrorEnvelope(payload: unknown): ErrorEnvelope {
+  if (typeof payload === 'string') return { message: payload.length < 200 ? payload : undefined };
+  if (!payload || typeof payload !== 'object') return {};
+  const record = payload as Record<string, unknown>;
+  const inner =
+    record.error && typeof record.error === 'object'
+      ? (record.error as Record<string, unknown>)
+      : record;
+  const str = (value: unknown) => (typeof value === 'string' ? value : undefined);
+  return {
+    message: str(inner.message) ?? str(record.error) ?? str(inner.detail),
+    code: str(inner.code),
+    field: str(inner.field),
+    retryAfterMs:
+      typeof inner.retryAfterMs === 'number' && inner.retryAfterMs >= 0
+        ? inner.retryAfterMs
+        : undefined,
+  };
+}
+
+function retryAfterHeaderMs(response: Response): number | undefined {
+  const seconds = Number(response.headers.get('Retry-After'));
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined;
 }

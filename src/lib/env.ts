@@ -1,29 +1,12 @@
-import { z } from 'zod';
-
 /**
- * Env is validated once at startup so a missing/typoed variable fails loudly
- * instead of surfacing later as a confusing network error.
+ * The one place the API base URL lives (the brief asks for it to be in code).
+ * It is not a secret, so a fresh clone runs without any .env file.
  *
- * EXPO_PUBLIC_* vars must be accessed as literal `process.env.EXPO_PUBLIC_X`
- * (no destructuring / dynamic keys) or Metro will not inline them.
+ * The API token is deliberately NOT here or in env: EXPO_PUBLIC_* values are inlined
+ * into the deployed bundle. The user enters it at runtime (see lib/auth/token-storage).
  */
-const EnvSchema = z.object({
-  apiUrl: z.url(),
-  apiToken: z.string().optional(),
-});
-
-const parsed = EnvSchema.safeParse({
-  apiUrl: process.env.EXPO_PUBLIC_API_URL,
-  apiToken: process.env.EXPO_PUBLIC_API_TOKEN || undefined,
-});
-
-if (!parsed.success) {
-  throw new Error(
-    `Invalid environment. Copy .env.example to .env.local.\n${z.prettifyError(parsed.error)}`,
-  );
-}
+export const API_BASE_URL = 'https://task-api.cashmine.io';
 
 export const env = {
-  ...parsed.data,
-  apiUrl: parsed.data.apiUrl.replace(/\/+$/, ''),
+  apiUrl: API_BASE_URL.replace(/\/+$/, ''),
 };
