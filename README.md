@@ -14,13 +14,14 @@ cp .env.example .env.local   # API URL + token from the brief
 npm run web                  # http://localhost:8081
 ```
 
-| Script                   | What it does                                      |
-| ------------------------ | ------------------------------------------------- |
-| `npm run check`          | typecheck + lint + tests (also in GitHub Actions) |
-| `npm run build:web`      | static export to `dist/`                          |
-| `npm run preview:web`    | serve `dist/` locally like production             |
-| `npm run deploy:preview` | build + deploy a Netlify draft URL                |
-| `npm run deploy`         | build + deploy to production on Netlify           |
+| Script                   | What it does                                                            |
+| ------------------------ | ----------------------------------------------------------------------- |
+| `npm run check`          | typecheck + lint + tests (also in GitHub Actions)                       |
+| `npm run build:web`      | static export to `dist/`                                                |
+| `npm run preview:web`    | serve `dist/` locally like production                                   |
+| `npm run deploy:preview` | build + deploy a Netlify draft URL                                      |
+| `npm run deploy`         | build + deploy to production on Netlify                                 |
+| `npm run ai-logs`        | export the current Claude Code session to `ai-logs/` (secrets redacted) |
 
 ## What I built
 
@@ -62,4 +63,5 @@ ai-logs/               AI conversations
 
 ## AI usage
 
-See [`ai-logs/`](ai-logs).
+AI (Claude Code) was used throughout. Conversations are in [`ai-logs/`](ai-logs), exported with
+`npm run ai-logs` ([script](scripts/ai-logs.mjs)), which redacts the API token before anything is committed.
