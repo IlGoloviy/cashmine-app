@@ -289,6 +289,15 @@ function unknownReason(error: unknown): string {
       return 'The server did not answer in time.';
     }
     if (error.kind === 'parse') return 'The server’s answer could not be read.';
+    if (error.status === 429) {
+      const seconds = error.retryAfterMs ? Math.ceil(error.retryAfterMs / 1000) : undefined;
+      return seconds
+        ? `Too many requests — wait ${seconds} s, then check again.`
+        : 'Too many requests — wait a moment, then check again.';
+    }
+    if (error.status === 401 || error.status === 403) {
+      return 'Your API token was rejected while checking.';
+    }
   }
   return 'The server had a temporary problem.';
 }
