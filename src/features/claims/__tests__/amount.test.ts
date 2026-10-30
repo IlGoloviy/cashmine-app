@@ -1,4 +1,9 @@
-import { maxAmount, validateClaimAmount, type AmountRules } from '../amount';
+import {
+  AMBIGUOUS_AMOUNT_ERROR,
+  maxAmount,
+  validateClaimAmount,
+  type AmountRules,
+} from '../amount';
 
 const ETH: AmountRules = {
   asset: 'ETH',
@@ -28,7 +33,17 @@ describe('validateClaimAmount', () => {
 
   it('accepts a comma decimal separator and canonicalises the amount sent', () => {
     expect(validateClaimAmount('0,5', ETH)).toMatchObject({ ok: true, amount: '0.5' });
+    expect(validateClaimAmount('10,25', ETH)).toMatchObject({ ok: true, amount: '10.25' });
+    expect(validateClaimAmount('1,5000', ETH)).toMatchObject({ ok: true, amount: '1.5' });
     expect(validateClaimAmount('1.500', ETH)).toMatchObject({ ok: true, amount: '1.5' });
+  });
+
+  it('rejects comma input that could be thousands grouping instead of guessing', () => {
+    // Review finding: "10,000" used to be accepted as 10.
+    const big = { ...ETH, available: '2000000' };
+    for (const ambiguous of ['10,000', '1,500', '100,000', '1,000,000', '1.000,5', '1,000.5']) {
+      expect(err(ambiguous, big)).toBe(AMBIGUOUS_AMOUNT_ERROR);
+    }
   });
 
   it('enforces the asset decimals', () => {
