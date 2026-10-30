@@ -5,7 +5,7 @@ import { activityKeys } from '@/features/activity/queries';
 import { balanceKeys } from '@/features/balances/queries';
 
 import { createClaim, fetchClaim, fetchClaimOptions } from './api';
-import { getLocalClaim, upsertLocalClaim } from './local-claims';
+import { getLocalClaim, markClaimViewed, upsertLocalClaim } from './local-claims';
 import type { CreateClaimInput } from './schemas';
 
 export const claimKeys = {
@@ -15,7 +15,7 @@ export const claimKeys = {
 };
 
 /** Pending claims settle within ~20 s; poll often enough to feel live. */
-const CLAIM_POLL_MS = 2_000;
+export const CLAIM_POLL_MS = 2_000;
 
 export function useClaimOptionsQuery(asset: string | undefined) {
   return useQuery({
@@ -37,6 +37,8 @@ export function useClaimQuery(id: string) {
     refetchInterval: (q) => (q.state.data?.status === 'pending' ? CLAIM_POLL_MS : false),
   });
   const queryClient = useQueryClient();
+  // The user is looking at this claim: no Home notice needed when it settles.
+  useEffect(() => markClaimViewed(id), [id]);
   const status = query.data?.status;
   useEffect(() => {
     if (!query.data) return;

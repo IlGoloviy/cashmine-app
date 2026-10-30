@@ -8,6 +8,7 @@ import { useColorScheme } from 'react-native';
 import { useTokenStatus } from '@/features/auth/use-token-status';
 import { clearLocalClaims } from '@/features/claims/local-claims';
 import { clearPendingAttempt } from '@/features/claims/pending-attempt';
+import { PendingClaimsWatcher } from '@/features/claims/pending-claims-watcher';
 import { subscribeToken } from '@/lib/auth/token-storage';
 import { createQueryClient, subscribeAppFocus } from '@/lib/query-client';
 
@@ -43,6 +44,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <StatusBar style="auto" />
+        {tokenStatus === 'present' ? <PendingClaimsWatcher /> : null}
         <Stack>
           <Stack.Protected guard={tokenStatus === 'present'} redirectTo="/token">
             <Stack.Screen name="index" options={{ title: 'CashMine' }} />

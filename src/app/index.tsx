@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { BalanceRow } from '@/features/balances/components/balance-row';
 import { Freshness } from '@/features/balances/components/freshness';
 import { totalUsd } from '@/features/balances/totals';
+import { ClaimNotices } from '@/features/claims/components/claim-notices';
 import { usePendingAttempt } from '@/features/claims/pending-attempt';
 import { useDisplayBalances } from '@/features/claims/use-display-balances';
 import { useTheme } from '@/hooks/use-theme';
@@ -60,6 +61,7 @@ export default function BalancesScreen() {
                     {formatUsd(totalUsd(display.items))}
                   </ThemedText>
                   <Freshness asOf={display.asOf} />
+                  <ClaimNotices />
                   {pending ? (
                     <View
                       style={[styles.pending, { borderColor: theme.danger }]}
